@@ -8,7 +8,7 @@
 ##  Installation & Setup
 ### 1️⃣ Clone the Repository
 ```sh
- git clone https://github.com/youssefouar/hubvalue.git
+ git clone [https://github.com/youssefouar/hubvalue.git](https://github.com/YoussefOuarrak/startupapp)
  cd hubvalue
 ```
 
