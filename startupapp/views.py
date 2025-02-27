@@ -4,13 +4,189 @@ import logging
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from .forms import FileUploadForm
-from .models import Startup, UploadedFile
+from .models import Startup, UploadedFile, StartupApplication
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
 import re
 from datetime import datetime
+
+
+def upload_file(request):
+    if request.method == 'POST':
+        form = FileUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            uploaded_file = form.save()
+
+            try:
+                wb = openpyxl.load_workbook(uploaded_file.file.path, data_only=True)
+                sheet = wb.active
+
+                # 🔍 Dynamically detect header row
+                required_columns = ["Application ID"]
+                header_row_idx, detected_headers = detect_header_row(sheet, required_columns)
+
+                if header_row_idx is None:
+                    print("❌ Could not detect a valid header row")
+                    messages.error(request, "Could not detect a valid header row in the file.")
+                    return redirect('file_upload_success')
+
+                print(f"📌 Detected header row: {detected_headers}")
+
+                # 🔥 Detect file type dynamically
+                if "application id" in [h.lower() for h in detected_headers]:  
+                    print("🔍 PVA file format detected based on detected headers")
+                    success = process_pva_file(uploaded_file.file.path)
+                else:
+                    print("🔍 Pipeline file format assumed")
+                    success = process_excel_file(uploaded_file.file.path)
+
+                if success:
+                    uploaded_file.processed = True
+                    uploaded_file.save()
+                    messages.success(request, "File uploaded and processed successfully! ✅")
+                else:
+                    messages.error(request, "File processing failed. Please check the format.")
+
+            except Exception as e:
+                print(f"❌ Error in upload_file: {str(e)}")
+                messages.error(request, f"Error reading file: {e}")
+
+            return redirect('file_upload_success')
+
+    else:
+        form = FileUploadForm()
+
+    return render(request, 'upload.html', {'form': form})
+
+
+def process_pva_file(file_path):
+    """Process the uploaded PVA file and store applications separately."""
+    try:
+        print("🔍 Starting PVA file processing")
+        wb = openpyxl.load_workbook(file_path, data_only=True)
+        sheet = wb.active
+
+        # Find the header row - directly search for Application ID
+        header_row_idx = None
+        headers = []
+
+        # Search through first 10 rows to find the header
+        for i in range(1, 10):
+            row_values = [str(cell.value).strip() if cell.value else "" for cell in sheet[i]]
+            if "Application ID" in row_values:
+                header_row_idx = i
+                headers = row_values
+                print(f"📌 Found header row at index {i}: {headers}")
+                break
+
+        if not header_row_idx:
+            print("❌ Could not find a row containing 'Application ID'")
+            return False
+
+        # Ensure headers are correctly extracted
+        print(f"✅ Extracted Headers: {headers}")
+
+        # Create column indices mapping (column name -> index)
+        column_indices = {}
+        for col_index, header in enumerate(headers):
+            if header:  # Skip empty headers
+                column_indices[header.lower()] = col_index
+
+        print(f"📌 Column indices mapping created: {column_indices}")
+
+        # Verify essential columns exist
+        required_columns = ['application id', 'startup/person name']
+        missing_columns = [col for col in required_columns if col not in column_indices]
+
+        if missing_columns:
+            print(f"❌ Missing required columns: {missing_columns}")
+            return False
+
+        # Process data rows
+        data_start_row = header_row_idx + 1
+        row_count = 0
+        success_count = 0
+
+        # Ensure safe access to values
+        def safe_get_value(idx, row_data):
+            """ Ensure idx is a valid integer before accessing row_data """
+            if idx is None or not isinstance(idx, int) or idx >= len(row_data):
+                return None
+            val = row_data[idx]
+            return str(val).strip() if val is not None else None
+
+        for row_idx in range(data_start_row, sheet.max_row + 1):
+            # Ensure row_data is a list
+            row_data = [cell.value for cell in sheet[row_idx]]  
+
+            # Debugging: Print each row before processing
+            print(f"🔍 Row {row_idx}: {row_data}")
+
+            # Skip empty rows
+            if not any(row_data):
+                continue
+
+            row_count += 1
+
+            try:
+                # Extract values using column indices
+                application_id = safe_get_value(column_indices.get('application id'), row_data)  # IDs should remain as is
+                startup_name = safe_get_value(column_indices.get('startup/person name'), row_data)  # IDs should remain as is
+
+                applicant_name = safe_get_value(column_indices.get('primary contact name'), row_data) or ""
+                email = safe_get_value(column_indices.get('primary contact email address'), row_data) or ""
+                phone = safe_get_value(column_indices.get('primary contact title'), row_data) or ""
+                pitch = safe_get_value(column_indices.get('brief description'), row_data) or ""
+                funding_requested = safe_get_value(column_indices.get('amount raising'), row_data) or ""
+                business_stage = safe_get_value(column_indices.get('fund stage'), row_data) or ""
+
+                # Debug extracted values
+                print(f"✅ Extracted Data - App ID: {application_id}, Name: {startup_name}")
+
+                # Skip if essential data is missing
+                if not application_id or not startup_name:
+                    print(f"⚠️ Skipping row {row_idx}: Missing application ID or startup name")
+                    continue
+
+                # Link to existing startup
+                startup = Startup.objects.filter(item_name__icontains=startup_name).first()
+                if not startup:
+                    print(f"⚠️ No matching startup found for '{startup_name}'")
+                    continue
+
+                # Create or update the application
+                application, created = StartupApplication.objects.update_or_create(
+                    application_id=application_id,
+                    defaults={
+                        'startup': startup,
+                        'applicant_name': applicant_name,
+                        'email': email,
+                        'phone': phone,
+                        'pitch': pitch,
+                        'funding_requested': funding_requested,
+                        'business_stage': business_stage,
+                    }
+)
+
+                print(f"✅ {'Created' if created else 'Updated'} application: {application_id}")
+                success_count += 1
+
+            except Exception as e:
+                print(f"❌ Error processing row {row_idx}: {str(e)}")
+                import traceback
+                traceback.print_exc()
+
+        print(f"🎉 PVA processing complete! Processed {row_count} rows, {success_count} successful.")
+        return success_count > 0
+
+    except Exception as e:
+        print(f"❌ Critical error processing PVA file: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return False
+
 
 def parse_date(value):
     """Convert Excel dates or string dates into Python date objects."""
@@ -41,41 +217,30 @@ def parse_date(value):
 
     return None  # If conversion fails
 
-def upload_file(request):
-    if request.method == 'POST':
-        form = FileUploadForm(request.POST, request.FILES)
-        if form.is_valid():
-            uploaded_file = form.save()
-            success = process_excel_file(uploaded_file.file.path)
-
-            if success:
-                uploaded_file.processed = True
-                uploaded_file.save()
-                messages.success(request, "File uploaded and processed successfully! ✅")
-            else:
-                messages.error(request, "File processing failed. Please check the format.")
-
-            return redirect('file_upload_success')
-    else:
-        form = FileUploadForm()
-
-    return render(request, 'upload.html', {'form': form})
-
-def detect_header_row(sheet, required_columns, threshold=0.4):
-    """Dynamically detect the header row based on required column names."""
+def detect_header_row(sheet, required_columns, pva_columns=None, threshold=0.4):
+    """Dynamically detect the header row based on required column names for both Pipeline & PVA."""
     for i, row in enumerate(sheet.iter_rows(values_only=True), start=1):
         row_values = [str(cell).strip() if cell else "" for cell in row]
         non_empty_cells = sum(1 for cell in row_values if cell)
 
-        if non_empty_cells < 4:
+        if non_empty_cells < 4:  # Ignore empty rows
             continue
 
-        matching_cols = [col for col in required_columns if col.lower() in map(str.lower, row_values)]
-        if len(matching_cols) >= len(required_columns) * threshold:
-            return i, row_values
+        # 🔥 Check if it matches Pipeline headers
+        matching_pipeline_cols = [col for col in required_columns if col.lower() in map(str.lower, row_values)]
+        
+        # 🔥 Check if it matches PVA headers
+        matching_pva_cols = [col for col in (pva_columns or []) if col.lower() in map(str.lower, row_values)]
 
-    return None, None
+        if len(matching_pipeline_cols) >= len(required_columns) * threshold:
+            print(f"📌 Detected Pipeline header row at index {i}: {row_values}")  # Debugging
+            return i, row_values  # ✅ Pipeline detected
 
+        if len(matching_pva_cols) >= len((pva_columns or [])) * threshold:
+            print(f"📌 Detected PVA header row at index {i}: {row_values}")  # Debugging
+            return i, row_values  # ✅ PVA detected
+
+    return None, None  # ❌ No valid header row found
 
 def process_excel_file(file_path):
     """Process the uploaded Excel file and save data to the database with debugging."""
@@ -188,10 +353,10 @@ def process_excel_file(file_path):
         print(f"❌ Critical error processing Excel file: {e}")
         return False
 
-
-
 def file_upload_success(request):
     return render(request, 'upload_success.html')
 
 def homepage(request):
     return render(request, 'homepage.html')
+
+
