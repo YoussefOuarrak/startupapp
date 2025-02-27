@@ -6,11 +6,9 @@ from django.contrib import messages
 from .forms import FileUploadForm
 from .models import Startup, UploadedFile, StartupApplication
 from datetime import datetime
+import re
 
 logger = logging.getLogger(__name__)
-
-import re
-from datetime import datetime
 
 
 def upload_file(request):
@@ -60,7 +58,6 @@ def upload_file(request):
 
     return render(request, 'upload.html', {'form': form})
 
-
 def process_pva_file(file_path):
     """Process the uploaded PVA file and store applications separately."""
     try:
@@ -68,12 +65,11 @@ def process_pva_file(file_path):
         wb = openpyxl.load_workbook(file_path, data_only=True)
         sheet = wb.active
 
-        # Find the header row - directly search for Application ID
+        # 🔍 Identify header row dynamically
         header_row_idx = None
         headers = []
 
-        # Search through first 10 rows to find the header
-        for i in range(1, 10):
+        for i in range(1, 10):  # Search first 10 rows for headers
             row_values = [str(cell.value).strip() if cell.value else "" for cell in sheet[i]]
             if "Application ID" in row_values:
                 header_row_idx = i
@@ -85,108 +81,138 @@ def process_pva_file(file_path):
             print("❌ Could not find a row containing 'Application ID'")
             return False
 
-        # Ensure headers are correctly extracted
-        print(f"✅ Extracted Headers: {headers}")
+        # 🔄 Create column mapping
+        column_indices = {header.lower(): idx for idx, header in enumerate(headers) if header}
 
-        # Create column indices mapping (column name -> index)
-        column_indices = {}
-        for col_index, header in enumerate(headers):
-            if header:  # Skip empty headers
-                column_indices[header.lower()] = col_index
-
-        print(f"📌 Column indices mapping created: {column_indices}")
-
-        # Verify essential columns exist
+        # Ensure required columns exist
         required_columns = ['application id', 'startup/person name']
-        missing_columns = [col for col in required_columns if col not in column_indices]
-
-        if missing_columns:
-            print(f"❌ Missing required columns: {missing_columns}")
+        if any(col not in column_indices for col in required_columns):
+            print("❌ Missing required columns.")
             return False
 
-        # Process data rows
+        # 🔄 Process rows
         data_start_row = header_row_idx + 1
-        row_count = 0
         success_count = 0
 
-        # Ensure safe access to values
         def safe_get_value(idx, row_data):
-            """ Ensure idx is a valid integer before accessing row_data """
-            if idx is None or not isinstance(idx, int) or idx >= len(row_data):
-                return None
-            val = row_data[idx]
-            return str(val).strip() if val is not None else None
+            """Safely retrieve a cell value"""
+            return str(row_data[idx]).strip() if idx is not None and idx < len(row_data) and row_data[idx] else None
 
         for row_idx in range(data_start_row, sheet.max_row + 1):
-            # Ensure row_data is a list
-            row_data = [cell.value for cell in sheet[row_idx]]  
+            row_data = [cell.value for cell in sheet[row_idx]]
 
-            # Debugging: Print each row before processing
-            print(f"🔍 Row {row_idx}: {row_data}")
-
-            # Skip empty rows
-            if not any(row_data):
+            if not any(row_data):  # Skip empty rows
                 continue
 
-            row_count += 1
-
             try:
-                # Extract values using column indices
-                application_id = safe_get_value(column_indices.get('application id'), row_data)  # IDs should remain as is
-                startup_name = safe_get_value(column_indices.get('startup/person name'), row_data)  # IDs should remain as is
+                # ✅ Extract basic fields
+                application_id = safe_get_value(column_indices.get('application id'), row_data)
+                startup_name = safe_get_value(column_indices.get('startup/person name'), row_data)
+                applicant_name = safe_get_value(column_indices.get('primary contact name'), row_data)
+                primary_contact_title = safe_get_value(column_indices.get('primary contact title'), row_data)
+                email = safe_get_value(column_indices.get('primary contact email address'), row_data)
+                phone = safe_get_value(column_indices.get('phone'), row_data)
+                brief_description = safe_get_value(column_indices.get('brief description'), row_data)
+                business_stage = safe_get_value(column_indices.get('fund stage'), row_data)
+                average_score = safe_get_value(column_indices.get('average score'), row_data)
 
-                applicant_name = safe_get_value(column_indices.get('primary contact name'), row_data) or ""
-                email = safe_get_value(column_indices.get('primary contact email address'), row_data) or ""
-                phone = safe_get_value(column_indices.get('primary contact title'), row_data) or ""
-                pitch = safe_get_value(column_indices.get('brief description'), row_data) or ""
-                funding_requested = safe_get_value(column_indices.get('amount raising'), row_data) or ""
-                business_stage = safe_get_value(column_indices.get('fund stage'), row_data) or ""
+                # ✅ Contact & Social Media JSON
+                contact_info = {
+                    "city": safe_get_value(column_indices.get('city'), row_data),
+                    "country": safe_get_value(column_indices.get('country'), row_data),
+                    "website": safe_get_value(column_indices.get('website'), row_data),
+                    "facebook": safe_get_value(column_indices.get('facebook'), row_data),
+                    "twitter": safe_get_value(column_indices.get('twitter'), row_data),
+                    "linkedin": safe_get_value(column_indices.get('linkedin'), row_data),
+                    "github": safe_get_value(column_indices.get('github'), row_data),
+                    "additional_links": [
+                        safe_get_value(column_indices.get('additional link 1'), row_data),
+                        safe_get_value(column_indices.get('additional link 2'), row_data),
+                        safe_get_value(column_indices.get('additional link 3'), row_data)
+                    ]
+                }
 
-                # Debug extracted values
-                print(f"✅ Extracted Data - App ID: {application_id}, Name: {startup_name}")
+                # ✅ Video Links JSON
+                videos = {
+                    "product_video": safe_get_value(column_indices.get('product video'), row_data),
+                    "team_video": safe_get_value(column_indices.get('team video'), row_data)
+                }
 
-                # Skip if essential data is missing
+                # ✅ Company Registration JSON
+                registration_info = {
+                    "status": safe_get_value(column_indices.get('are you registered or incorporated?'), row_data),
+                    "location": safe_get_value(column_indices.get('where are you registered or incorporated?'), row_data),
+                    "start_date": safe_get_value(column_indices.get('when did you start this company?'), row_data)  # ✅ Added
+                }
+
+                # ✅ Business Progress JSON
+                progress_status = {
+                    "description": safe_get_value(column_indices.get('what do you do in detail?'), row_data),
+                    "differentiators": safe_get_value(column_indices.get("what's different/interesting about your startup?"), row_data),
+                    "stage": safe_get_value(column_indices.get('how far along are you?'), row_data)
+                }
+
+                # ✅ Financial Data JSON
+                financials = {
+                    "funds_raised": safe_get_value(column_indices.get('how much money raised since start?'), row_data),
+                    "runway": safe_get_value(column_indices.get('how much runway do you have left?'), row_data),
+                    "raising": safe_get_value(column_indices.get('raising'), row_data),
+                    "amount_raising": safe_get_value(column_indices.get('amount raising'), row_data),
+                    "currency": safe_get_value(column_indices.get('amount currency'), row_data),
+                    "valuation": safe_get_value(column_indices.get('valuation'), row_data),
+                    "valuation_currency": safe_get_value(column_indices.get('valuation currency'), row_data)
+                }
+
+                # ✅ Customers & Markets JSON
+                customer_info = {
+                    "markets": safe_get_value(column_indices.get('skills or markets'), row_data).split(',') if safe_get_value(column_indices.get('skills or markets'), row_data) else [],
+                    "customers": safe_get_value(column_indices.get('key customers/users?'), row_data).split(',') if safe_get_value(column_indices.get('key customers/users?'), row_data) else []
+                }
+
+                # ✅ Skip if essential data is missing
                 if not application_id or not startup_name:
-                    print(f"⚠️ Skipping row {row_idx}: Missing application ID or startup name")
+                    print(f"⚠️ Skipping row {row_idx}: Missing Application ID or Startup Name")
                     continue
 
-                # Link to existing startup
+                # ✅ Link to existing startup
                 startup = Startup.objects.filter(item_name__icontains=startup_name).first()
                 if not startup:
                     print(f"⚠️ No matching startup found for '{startup_name}'")
                     continue
 
-                # Create or update the application
+                # ✅ Create or update the application
                 application, created = StartupApplication.objects.update_or_create(
                     application_id=application_id,
                     defaults={
-                        'startup': startup,
-                        'applicant_name': applicant_name,
-                        'email': email,
-                        'phone': phone,
-                        'pitch': pitch,
-                        'funding_requested': funding_requested,
-                        'business_stage': business_stage,
+                        "startup": startup,
+                        "applicant_name": applicant_name,
+                        "primary_contact_title": primary_contact_title,
+                        "email": email,
+                        "phone": phone,
+                        "brief_description": brief_description,
+                        "business_stage": business_stage,
+                        "average_score": float(average_score) if average_score else None,
+                        "contact_info": contact_info,
+                        "videos": videos,
+                        "registration_info": registration_info,
+                        "progress_status": progress_status,
+                        "financials": financials,
+                        "customer_info": customer_info,
                     }
-)
+                )
 
                 print(f"✅ {'Created' if created else 'Updated'} application: {application_id}")
                 success_count += 1
 
             except Exception as e:
-                print(f"❌ Error processing row {row_idx}: {str(e)}")
-                import traceback
-                traceback.print_exc()
+                logger.error(f"❌ Error processing row {row_idx}: {str(e)}")
 
-        print(f"🎉 PVA processing complete! Processed {row_count} rows, {success_count} successful.")
+        print(f"🎉 PVA processing complete! Successfully processed {success_count} rows.")
         return success_count > 0
 
     except Exception as e:
-        print(f"❌ Critical error processing PVA file: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"❌ Critical error processing PVA file: {str(e)}")
         return False
-
 
 def parse_date(value):
     """Convert Excel dates or string dates into Python date objects."""

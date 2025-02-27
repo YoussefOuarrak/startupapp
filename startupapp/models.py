@@ -60,17 +60,36 @@ class Startup(models.Model):
 class StartupApplication(models.Model):
     startup = models.ForeignKey(Startup, on_delete=models.CASCADE, related_name="applications")
     application_id = models.CharField(max_length=50, unique=True)
-    applicant_name = models.CharField(max_length=255)
+    applicant_name = models.CharField(max_length=255, null=True, blank=True)
+    primary_contact_title = models.CharField(max_length=255, null=True, blank=True)
     email = models.EmailField(null=True, blank=True)
     phone = models.CharField(max_length=20, null=True, blank=True)
-    pitch = models.TextField(null=True, blank=True)
+    brief_description = models.TextField(null=True, blank=True) 
     funding_requested = models.CharField(max_length=50, null=True, blank=True)
-    business_stage = models.CharField(max_length=100, null=True, blank=True)
+    business_stage = models.CharField(max_length=100, null=True, blank=True)  # Renamed from "business_stage"
+    average_score = models.FloatField(null=True, blank=True)  # Renamed from "quality_score"
     submitted_at = models.DateTimeField(auto_now_add=True)
+
+    #Contact & Social Media
+    contact_info = models.JSONField(default=dict, blank=True)
+
+    #Video Links
+    videos = models.JSONField(default=dict, blank=True)
+
+    #Company Registration Info (Added "start_date")
+    registration_info = models.JSONField(default=dict, blank=True)
+
+    #Business Progress
+    progress_status = models.JSONField(default=dict, blank=True)
+
+    #Financial Data
+    financials = models.JSONField(default=dict, blank=True)
+
+    #Customers & Markets
+    customer_info = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
         return f"Application {self.application_id} for {self.startup.item_name}"
-
 
 # ✅ Added UploadedFile Model
 class UploadedFile(models.Model):
