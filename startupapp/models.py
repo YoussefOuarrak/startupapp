@@ -32,7 +32,8 @@ class Startup(models.Model):
     interfaces = models.TextField(null=True, blank=True)
     
     # Financial Data as Text (to preserve currency symbols)
-    total_funding = models.CharField(max_length=50, null=True, blank=True)
+    total_funding_currency = models.CharField(max_length=3, null=True, blank=True)  # "GBP", "USD", etc.
+    total_funding_amount = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)  # Numeric amount
     cash_runway = models.CharField(max_length=50, null=True, blank=True)
     rev_last_12_months = models.CharField(max_length=50, null=True, blank=True)
     rev_last_month = models.CharField(max_length=50, null=True, blank=True)

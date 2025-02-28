@@ -1,12 +1,13 @@
 import openpyxl
 import json
 import logging
-from django.shortcuts import render, redirect
+from django.shortcuts import get_object_or_404, render, redirect
 from django.contrib import messages
 from .forms import FileUploadForm
-from .models import Startup, UploadedFile, StartupApplication
+from .models import Startup, StartupApplication
 from datetime import datetime
 import re
+from django.core.paginator import Paginator
 
 logger = logging.getLogger(__name__)
 
@@ -243,6 +244,20 @@ def parse_date(value):
 
     return None  # If conversion fails
 
+def parse_funding(value):
+    """Extracts currency and numeric value from a funding string (e.g., 'GBP 550000')."""
+    if not value or not isinstance(value, str):  # Ensure it's a string
+        return None, None  
+
+    match = re.match(r"([A-Za-z]+)\s*([\d,]+(?:\.\d{1,2})?)", value.strip())
+    
+    if match:
+        currency, amount = match.groups()
+        amount = amount.replace(',', '')  # Remove thousands separators
+        return currency.upper(), float(amount)  # Convert to uppercase and numeric value
+
+    return None, None  # Return None if no valid match
+
 def detect_header_row(sheet, required_columns, pva_columns=None, threshold=0.4):
     """Dynamically detect the header row based on required column names for both Pipeline & PVA."""
     for i, row in enumerate(sheet.iter_rows(values_only=True), start=1):
@@ -346,7 +361,9 @@ def process_excel_file(file_path):
             interfaces = row[column_mapping.get('interfaces', '')]
 
             # 🟢 Financial Data
-            total_funding = str(row[column_mapping.get('total funding', '')] or "").strip()
+            funding_value = row[column_mapping.get('total funding', '')] or ""
+            print(f"Extracted Funding Value: {repr(funding_value)}")
+            total_funding_currency, total_funding_amount = parse_funding(funding_value)
             cash_runway = str(row[column_mapping.get('cash runway', '')] or "").strip()
             rev_last_12_months = str(row[column_mapping.get('rev last 12 months', '')] or "").strip()
             rev_last_month = str(row[column_mapping.get('rev last month', '')] or "").strip()
@@ -360,11 +377,13 @@ def process_excel_file(file_path):
                 'location': location, 'markets': markets, 'founders': founders,
                 'social_media': social_media, 'tagline': tagline, 'milestone': milestone,
                 'revenue_model': revenue_model, 'last_contact': last_contact,
-                'incorporated': incorporated, 'founded_date': founded_date,  # ✅ Added "Founded"
+                'incorporated': incorporated, 'founded_date': founded_date,
                 'differentiators': differentiators, 'description': description,
-                'interfaces': interfaces, 'clients': clients,  # ✅ Added "Clients"
-                'total_funding': total_funding, 'cash_runway': cash_runway, 
-                'rev_last_12_months': rev_last_12_months, 'rev_last_month': rev_last_month, 'rounds': rounds
+                'interfaces': interfaces, 'clients': clients,
+                'total_funding_currency': total_funding_currency,
+                'total_funding_amount': total_funding_amount,
+                'cash_runway': cash_runway, 'rev_last_12_months': rev_last_12_months,
+                'rev_last_month': rev_last_month, 'rounds': rounds
             }
 
             startup, created = Startup.objects.update_or_create(
@@ -385,4 +404,51 @@ def file_upload_success(request):
 def homepage(request):
     return render(request, 'homepage.html')
 
+def startup_list(request):
+    search_query = request.GET.get('q', '').strip()
+    min_funding = request.GET.get('min_funding')
+    max_funding = request.GET.get('max_funding')
 
+    startups = Startup.objects.all()
+
+    # 🔍 Apply search filter
+    if search_query:
+        startups = startups.filter(item_name__icontains=search_query)
+
+    # 💰 Apply funding range filter
+    if min_funding:
+        startups = startups.filter(total_funding_amount__gte=min_funding)
+
+    if max_funding:
+        startups = startups.filter(total_funding_amount__lte=max_funding)
+
+    # 🔄 Sorting Logic
+    allowed_sort_fields = ['item_name', 'location', 'total_funding_amount', 'created_at']
+    sort_by = request.GET.get('sort', 'item_name')  # Default sorting by name
+    order = request.GET.get('order', 'asc')  # Default to ascending order
+
+    if sort_by not in allowed_sort_fields:
+        sort_by = 'item_name'  # Fallback to a default field
+
+    if order == 'desc':
+        sort_by = f"-{sort_by}"  # Django uses '-' for descending order
+
+    startups = startups.order_by(sort_by)
+
+    # 📍 Pagination
+    paginator = Paginator(startups, 10)  # 10 startups per page
+    page_number = request.GET.get('page')
+    startups_page = paginator.get_page(page_number)
+
+    return render(request, 'startups/startup_list.html', {
+        'startups': startups_page,
+        'sort_by': sort_by.lstrip('-'),  # Remove '-' for UI display
+        'order': order,
+        'search_query': search_query,
+        'min_funding': min_funding,
+        'max_funding': max_funding
+    })
+
+def startup_detail(request, startup_id):
+    startup = get_object_or_404(Startup, id=startup_id)
+    return render(request, 'startups/startup_detail.html', {'startup': startup})

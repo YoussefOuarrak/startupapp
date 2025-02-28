@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>{{ startup.item_name }}</h2>
+    <p><strong>Location:</strong> {{ startup.location }}</p>
+    <p><strong>Total Funding:</strong> 
+        {% if startup.total_funding_currency and startup.total_funding_amount %}
+            {{ startup.total_funding_currency }} {{ startup.total_funding_amount|floatformat:2 }}
+        {% else %}
+            N/A
+        {% endif %}
+    </p>
+
+    <h4>Founders</h4>
+    <ul>
+        {% for founder in startup.founders %}
+            <li>{{ founder.name }} - {{ founder.role }}</li>
+        {% endfor %}
+    </ul>
+
+    <h4>Social Media</h4>
+    <ul>
+        {% for platform, link in startup.social_media.items %}
+            <li><a href="{{ link }}" target="_blank">{{ platform|title }}</a></li>
+        {% endfor %}
+    </ul>
+
+    <h4>Description</h4>
+    <p>{{ startup.description }}</p>
+
+    <a href="{% url 'startup_list' %}" class="btn btn-secondary">Back to List</a>
+</div>
+{% endblock %}
