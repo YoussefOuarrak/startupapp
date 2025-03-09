@@ -1,15 +1,22 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Upload Excel File</title>
-</head>
-<body>
-    <h2>Upload an Excel File</h2>
-    <form method="post" enctype="multipart/form-data">
+{% extends 'base.html' %}
+
+{% block title %}
+  Upload Excel File - Public Value Hub
+{% endblock %}
+
+{% block extra_css %}
+
+{% endblock %}
+
+{% block content %}
+  <div class="container">
+    <div class="upload-card">
+      <h2>Upload an Excel File</h2>
+      <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         {{ form.as_p }}
-        <button type="submit">Upload</button>
-    </form>
-</body>
-</html>
+        <button type="submit" class="btn btn-submit">Upload</button>
+      </form>
+    </div>
+  </div>
+{% endblock %}

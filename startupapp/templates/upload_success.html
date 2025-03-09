@@ -1,12 +1,19 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Upload Successful</title>
-</head>
-<body>
-    <h2>File Uploaded Successfully!</h2>
-    <p>Your Excel data has been processed and saved.</p>
-    <a href="{% url 'upload_file' %}">Upload Another File</a>
-</body>
-</html>
+{% extends 'base.html' %}
+
+{% block title %}
+  Upload Successful - Public Value Hub
+{% endblock %}
+
+{% block extra_css %}
+
+{% endblock %}
+
+{% block content %}
+  <div class="container">
+    <div class="success-card">
+      <h2>File Uploaded Successfully!</h2>
+      <p>Your Excel data has been processed and saved.</p>
+      <a href="{% url 'upload_file' %}" class="btn btn-upload-another">Upload Another File</a>
+    </div>
+  </div>
+{% endblock %}
