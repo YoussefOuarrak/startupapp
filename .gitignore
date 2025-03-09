@@ -1,7 +1,7 @@
 # Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
 
+startupapp/__pycache__/
+*.py[cod]
 # Django stuff:
 *.log
 db.sqlite3
@@ -13,7 +13,7 @@ staticfiles/
 *.pyd
 
 # Migrations - only ignore pycache inside migrations, not the migration files themselves
-**/migrations/__pycache__/
+startupapp/migrations/
 
 # Environment variables
 .env

@@ -6,8 +6,10 @@ A responsive web-based startup application management system developed using Dja
 ### App Screenshot
 ![Homepage](./screenshots/screen2.png)
 
+#### Mobile Interface
 ![Mobile interface](./screenshots/scrreenshot.png)
 
+#### Pagination
 ![Pagination](./screenshots/screen3.png)
 
 ## Installation & Setup
