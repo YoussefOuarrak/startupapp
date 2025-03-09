@@ -1,39 +1,5 @@
 # HubValue - Startup Evaluation Platform
 
-## Features
-
-**Excel File Upload 📤**
--	Accept Excel files containing startup application data
--	Provide clear feedback on upload success/failure
--   Handle basic file validation
-
-**Data Processing 🔄**
--   Parse Excel data into appropriate database models
--   Handle data cleaning and validation
-
-**Startup Overview 📊**
--   Paginated table view of startups
--   Essential startup information columns
--   Optional: Sortable columns
--   Quality score visualization for each startup (see 5.)
-
-**Startup Details 📋**
--   Detailed view accessed by clicking table rows
--   Comprehensive startup information display
--   Professional layout and design
-
-**Quality Scoring ⭐**
--   Algorithm to evaluate completeness of startup application data
--   Visual representation of quality score
-
-**Admin Panel**: for complete database and user management 
-
-
-## Tech Stack
-- **Backend:** Django (Python 3.12) with SQLite database
-- **Frontend:** Bootstrap CSS for responsive UI
-- **Libraries:** OpenPyxl (Excel file processing), PyParsing, Django JSONField
-
 ## Installation & Setup
 
 ### Prerequisites
@@ -101,6 +67,44 @@ From the admin Panel you can manage:
 4. Log in with your superuser credentials
 
 Administrators can use this interface to oversee all aspects of the platform without requiring direct database access or code changes.
+
+
+
+## Features
+
+**Excel File Upload 📤**
+-	Accept Excel files containing startup application data
+-	Provide clear feedback on upload success/failure
+-   Handle basic file validation
+
+**Data Processing 🔄**
+-   Parse Excel data into appropriate database models
+-   Handle data cleaning and validation
+
+**Startup Overview 📊**
+-   Paginated table view of startups
+-   Essential startup information columns
+-   Optional: Sortable columns
+-   Quality score visualization for each startup (see 5.)
+
+**Startup Details 📋**
+-   Detailed view accessed by clicking table rows
+-   Comprehensive startup information display
+-   Professional layout and design
+
+**Quality Scoring ⭐**
+-   Algorithm to evaluate completeness of startup application data
+-   Visual representation of quality score
+
+**Admin Panel**: for complete database and user management 
+
+
+## Tech Stack
+- **Backend:** Django (Python 3.12) with SQLite database
+- **Frontend:** Bootstrap CSS for responsive UI
+- **Libraries:** OpenPyxl (Excel file processing), PyParsing, Django JSONField
+
+
 
 
 ## Project Structure
