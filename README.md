@@ -16,7 +16,7 @@ A responsive web-based startup application management system developed using Dja
 
 ### Prerequisites
 - Python 3.12+
-- Git
+- Git (to clone the project)
 - Conda (recommended) or virtualenv
 
 ### Clone the Repository
@@ -47,6 +47,7 @@ pip install -r requirements.txt
 
 ### Configure Django Project
 ```sh
+
 # Run migrations
 python manage.py migrate
 
