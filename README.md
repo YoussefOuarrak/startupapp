@@ -6,21 +6,26 @@
 -	Accept Excel files containing startup application data
 -	Provide clear feedback on upload success/failure
 -   Handle basic file validation
+
 **Data Processing 🔄**
 -   Parse Excel data into appropriate database models
 -   Handle data cleaning and validation
+
 **Startup Overview 📊**
 -   Paginated table view of startups
 -   Essential startup information columns
 -   Optional: Sortable columns
 -   Quality score visualization for each startup (see 5.)
+
 **Startup Details 📋**
 -   Detailed view accessed by clicking table rows
 -   Comprehensive startup information display
 -   Professional layout and design
+
 **Quality Scoring ⭐**
 -   Algorithm to evaluate completeness of startup application data
 -   Visual representation of quality score
+
 **Admin Panel**: for complete database and user management 
 
 
