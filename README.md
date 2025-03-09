@@ -1,5 +1,15 @@
 # HubValue - Startup Evaluation Platform
 
+## Overview
+A responsive web-based startup application management system developed using Django for the backend and Bootstrap for the frontend UI, including a sample administrative interface for managing data.
+
+### App Screenshot
+![Homepage](./screenshots/screen2.png)
+
+![Mobile interface](./screenshots/scrreenshot.png)
+
+![Pagination](./screenshots/screen3.png)
+
 ## Installation & Setup
 
 ### Prerequisites
