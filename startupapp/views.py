@@ -2,12 +2,19 @@ import openpyxl
 import logging
 from django.shortcuts import get_object_or_404, render, redirect
 from django.contrib import messages
+from django.utils import timezone 
+from startupapp.ai_services import AIService
 from .forms import FileUploadForm
-from .models import Startup, StartupApplication
+from .models import Startup, StartupApplication, StartupAIAnalysis
 from datetime import datetime
 import re
 from django.core.paginator import Paginator
 from decimal import Decimal, InvalidOperation
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+import json
+
 
 logger = logging.getLogger(__name__)
 
@@ -415,3 +422,68 @@ def calculate_quality_score(data):
     total = len(required_fields)
     completed = sum(1 for field in required_fields if field and field.strip())
     return (completed / total) * 100 if total > 0 else 0
+
+@require_POST
+def analyze_startup_with_ai(request, startup_id):
+    """Analyze a startup using AI and store the results"""
+    try:
+        startup = get_object_or_404(Startup, id=startup_id)
+        
+        # Convert startup data to dictionary for AI service
+        startup_data = {
+            'item_name': startup.item_name,
+            'description': startup.description,
+            'tagline': startup.tagline,
+            'location': startup.location,
+            'markets': startup.markets,
+            'total_funding_currency': startup.total_funding_currency,
+            'total_funding_amount': startup.total_funding_amount,
+            'revenue_model': startup.revenue_model,
+            'differentiators': startup.differentiators,
+            'founded_date': startup.founded_date,
+            'clients': startup.clients,
+        }
+        
+        # Initialize AI service
+        ai_service = AIService()
+        
+        # Generate summary and classification
+        summary = ai_service.generate_startup_summary(startup_data)
+        classification = ai_service.classify_industry(startup_data)
+        
+        # Update or create AI analysis
+        analysis, created = StartupAIAnalysis.objects.update_or_create(
+            startup=startup,
+            defaults={
+                'summary': summary,
+                'industry_classification': classification,
+                'last_updated': timezone.now()
+            }
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'summary': summary,
+            'classification': classification,
+            'last_updated': analysis.last_updated.strftime('%Y-%m-%d %H:%M:%S')
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in analyze_startup_with_ai: {str(e)}")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+def startup_detail(request, startup_id):
+    """Display details for a specific startup, including AI analysis if available."""
+    startup = get_object_or_404(Startup, id=startup_id)
+    ai_analysis = getattr(startup, 'ai_analysis', None)
+
+    # Check if AI analysis exists
+    try:
+        ai_analysis = startup.ai_analysis
+    except StartupAIAnalysis.DoesNotExist:
+        ai_analysis = None
+    
+    return render(request, 'startups/startup_detail.html', {
+        'startup': startup,
+        'ai_analysis': ai_analysis
+    })

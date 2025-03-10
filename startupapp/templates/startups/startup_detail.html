@@ -5,13 +5,42 @@
 {% endblock %}
 
 {% block extra_css %}
-
 {% endblock %}
 
 {% block content %}
   <div class="container">
     <div class="startup-card">
       <h2>{{ startup.item_name }}</h2>
+      
+      <!-- AI Analysis Button -->
+      <div class="text-right mb-3">
+        <button id="analyze-btn" class="btn btn-primary" onclick="analyzeStartup()">
+          Analyze with AI
+          <span id="loading-indicator" class="loading" style="display: none;"></span>
+        </button>
+      </div>
+      
+      <!-- AI Analysis Section (initially hidden) -->
+      <div id="ai-analysis-section" class="ai-section" style="display: none;">
+        <h4>AI Analysis</h4>
+        
+        <!-- Industry Classification -->
+        <div class="mb-3">
+          <strong>Industry:</strong> 
+          <span id="industry-classification"></span>
+        </div>
+        
+        <!-- Startup Summary -->
+        <div>
+          <strong>Summary:</strong>
+          <p id="ai-summary"></p>
+        </div>
+        
+        <div class="text-muted small">
+          <span id="last-updated"></span>
+        </div>
+      </div>
+      
       <p>
         <strong>Location:</strong> {{ startup.location }}
       </p>
@@ -50,4 +79,85 @@
       <a href="{% url 'startup_list' %}" class="btn btn-secondary">Back to List</a>
     </div>
   </div>
+  
+  <script>
+    function analyzeStartup() {
+      // Show loading indicator
+      document.getElementById('loading-indicator').style.display = 'inline-block';
+      document.getElementById('analyze-btn').disabled = true;
+      
+      // Make AJAX request to analyze startup
+      fetch('{% url "analyze_startup" startup.id %}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token }}'
+        }
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      })
+      .then(data => {
+        // Update UI with analysis results
+        document.getElementById('ai-summary').textContent = data.summary;
+        
+        // Set industry classification with appropriate badge
+        const classificationText = data.classification || '';
+        const badgeClass = getBadgeClass(classificationText.toLowerCase());
+        document.getElementById('industry-classification').innerHTML = 
+          '<span class="badge ' + badgeClass + '">' + classificationText + '</span>';
+        
+        // Set last updated time
+        document.getElementById('last-updated').textContent = `Last updated: ${data.last_updated}`;
+        
+        // Show analysis section
+        document.getElementById('ai-analysis-section').style.display = 'block';
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to analyze startup. Please try again later.');
+      })
+      .finally(() => {
+        // Hide loading indicator
+        document.getElementById('loading-indicator').style.display = 'none';
+        document.getElementById('analyze-btn').disabled = false;
+      });
+    }
+    
+    function getBadgeClass(classification) {
+      const classMap = {
+        'b2b': 'badge-b2b',
+        'b2c': 'badge-b2c',
+        'b2g': 'badge-b2g',
+        'marketplace': 'badge-marketplace'
+      };
+      
+      // Simple string comparison for safety
+      if (typeof classification === 'string' && classification.trim()) {
+        const lowerClass = classification.toLowerCase();
+        return classMap[lowerClass] || 'badge-other';
+      }
+          
+      return 'badge-other';
+    }
+    
+    // If AI analysis already exists, show it
+    {% if ai_analysis %}
+    document.getElementById('ai-summary').textContent = "{{ ai_analysis.summary|escapejs }}";
+    
+    // Use a safer approach for classification text
+    const classificationText = "{{ ai_analysis.industry_classification|escapejs }}";
+    let badgeClass = 'badge-other'; // Default fallback
+    
+    if (classificationText) {
+      badgeClass = getBadgeClass(classificationText.toLowerCase());
+    }
+    document.getElementById('industry-classification').innerHTML = `<span class="badge ${badgeClass}">${classificationText}</span>`;
+    document.getElementById('last-updated').textContent = "Last updated: {{ ai_analysis.last_updated|date:'Y-m-d H:i:s' }}";
+    document.getElementById('ai-analysis-section').style.display = 'block';
+  {% endif %}
+  </script>
 {% endblock %}

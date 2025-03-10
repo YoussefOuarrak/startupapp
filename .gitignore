@@ -24,3 +24,6 @@ startupapp/migrations/__pycache__/
 # OS files
 .DS_Store
 Thumbs.db
+
+#OpenAi API
+openAikey.txt

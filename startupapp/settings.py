@@ -126,3 +126,6 @@ STATIC_URL = '/static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Openai API key from anaconda environment
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')

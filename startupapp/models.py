@@ -1,3 +1,4 @@
+from django.utils import timezone
 from django.db import models
 
 class Startup(models.Model):
@@ -87,3 +88,11 @@ class UploadedFile(models.Model):
     file = models.FileField(upload_to='uploads/')
     uploaded_at = models.DateTimeField(auto_now_add=True)
     processed = models.BooleanField(default=False)
+
+class StartupAIAnalysis(models.Model):
+    startup = models.OneToOneField('Startup', on_delete=models.CASCADE, related_name='ai_analysis')
+    summary = models.TextField(blank=True, null=True)
+    industry_classification = models.CharField(max_length=50, blank=True, null=True)
+    last_updated = models.DateTimeField(default=timezone.now)
+    def __str__(self):
+        return f"AI Analysis for {self.startup.item_name}"

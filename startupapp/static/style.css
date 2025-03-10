@@ -337,3 +337,60 @@ ul li {
     color: #FFFFFF;
     border-radius: 8px;
 }
+
+/* Ai Analysis */
+.loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    border-top-color: #007bff;
+    animation: spin 1s ease-in-out infinite;
+    margin-left: 10px;
+  }
+  
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  
+  .ai-section {
+    margin-top: 20px;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+  }
+  
+  .badge {
+    display: inline-block;
+    padding: 0.25em 0.6em;
+    font-size: 75%;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: 0.25rem;
+    color: white;
+  }
+  
+  .badge-b2b {
+    background-color: #007bff;
+  }
+  
+  .badge-b2c {
+    background-color: #28a745;
+  }
+  
+  .badge-b2g {
+    background-color: #dc3545;
+  }
+  
+  .badge-marketplace {
+    background-color: #6f42c1;
+  }
+  
+  .badge-other {
+    background-color: #6c757d;
+  }
